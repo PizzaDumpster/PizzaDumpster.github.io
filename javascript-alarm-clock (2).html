@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Stylish Alarm Clock</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700&display=swap');
+        
+        body {
+            font-family: 'Orbitron', sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #1a1a2e;
+            color: #e94560;
+        }
+        .container {
+            text-align: center;
+            background-color: #16213e;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 0 20px rgba(233, 69, 96, 0.2);
+            max-width: 400px;
+            width: 100%;
+        }
+        #currentTime {
+            font-size: 3em;
+            margin-bottom: 30px;
+            text-shadow: 0 0 10px rgba(233, 69, 96, 0.5);
+        }
+        input[type="time"] {
+            background-color: #0f3460;
+            border: none;
+            color: #e94560;
+            font-size: 1.2em;
+            padding: 10px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-family: 'Orbitron', sans-serif;
+        }
+        button {
+            background-color: #e94560;
+            color: #16213e;
+            border: none;
+            padding: 10px 20px;
+            font-size: 1em;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin: 5px;
+            font-family: 'Orbitron', sans-serif;
+        }
+        button:hover {
+            background-color: #ff6b6b;
+            box-shadow: 0 0 10px rgba(233, 69, 96, 0.5);
+        }
+        #alarmStatus {
+            margin-top: 20px;
+            font-size: 1.2em;
+        }
+        .glow {
+            animation: glow 1s ease-in-out infinite alternate;
+        }
+        @keyframes glow {
+            from {
+                text-shadow: 0 0 5px #e94560, 0 0 10px #e94560, 0 0 15px #e94560;
+            }
+            to {
+                text-shadow: 0 0 10px #e94560, 0 0 20px #e94560, 0 0 30px #e94560;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="currentTime" class="glow"></div>
+        <input type="time" id="alarmTime">
+        <button onclick="setAlarm()">Set Alarm</button>
+        <button onclick="stopAlarm()" id="stopButton" style="display: none;">Stop Alarm</button>
+        <div id="alarmStatus"></div>
+    </div>
+
+    <audio id="alarmSound" loop>
+        <source src="https://assets.mixkit.co/sfx/preview/mixkit-alarm-digital-clock-beep-989.mp3" type="audio/mpeg">
+        Your browser does not support the audio element.
+    </audio>
+
+    <script>
+        const alarmSound = document.getElementById('alarmSound');
+        const stopButton = document.getElementById('stopButton');
+        let alarmTimeout;
+
+        function updateTime() {
+            const now = new Date();
+            document.getElementById('currentTime').textContent = now.toLocaleTimeString('en-US', { hour12: false });
+        }
+
+        setInterval(updateTime, 1000);
+
+        function setAlarm() {
+            const alarm = document.getElementById('alarmTime').value;
+            const alarmStatus = document.getElementById('alarmStatus');
+            
+            if (alarm === "") {
+                alarmStatus.textContent = "Please set a valid alarm time.";
+                return;
+            }
+
+            const now = new Date();
+            const alarmDate = new Date(now.toDateString() + ' ' + alarm);
+
+            if (alarmDate <= now) {
+                alarmDate.setDate(alarmDate.getDate() + 1);
+            }
+
+            const timeToAlarm = alarmDate - now;
+            alarmStatus.textContent = `Alarm set for ${alarm}`;
+
+            clearTimeout(alarmTimeout);
+            alarmTimeout = setTimeout(() => {
+                alarmSound.play();
+                alarmStatus.textContent = "Alarm ringing!";
+                alarmStatus.classList.add('glow');
+                stopButton.style.display = 'inline-block';
+            }, timeToAlarm);
+        }
+
+        function stopAlarm() {
+            alarmSound.pause();
+            alarmSound.currentTime = 0;
+            stopButton.style.display = 'none';
+            document.getElementById('alarmStatus').textContent = "Alarm stopped.";
+            document.getElementById('alarmStatus').classList.remove('glow');
+        }
+    </script>
+</body>
+</html>

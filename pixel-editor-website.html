@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pixel Editor with Accurate Grid Sizing</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background-color: #f0f0f0;
+        }
+        #canvasContainer {
+            position: relative;
+            margin-top: 20px;
+        }
+        #pixelCanvas {
+            border: 1px solid #000;
+            image-rendering: pixelated;
+        }
+        #gridOverlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        button, select {
+            margin: 0 5px;
+            padding: 5px 10px;
+        }
+        .active {
+            background-color: #4CAF50;
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <h1>Pixel Editor</h1>
+    <div class="controls">
+        <input type="color" id="colorPicker" value="#000000">
+        <button id="eraserBtn">Eraser</button>
+        <button id="clearBtn">Clear</button>
+        <button id="saveBtn">Save as PNG</button>
+        <select id="resolutionSelect">
+            <option value="8">8x8</option>
+            <option value="16">16x16</option>
+            <option value="32">32x32</option>
+            <option value="64">64x64</option>
+            <option value="128">128x128</option>
+            <option value="256">256x256</option>
+            <option value="512">512x512</option>
+        </select>
+    </div>
+    <div id="canvasContainer">
+        <canvas id="pixelCanvas"></canvas>
+        <canvas id="gridOverlay"></canvas>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('pixelCanvas');
+        const ctx = canvas.getContext('2d');
+        const gridOverlay = document.getElementById('gridOverlay');
+        const gridCtx = gridOverlay.getContext('2d');
+        const colorPicker = document.getElementById('colorPicker');
+        const eraserBtn = document.getElementById('eraserBtn');
+        const clearBtn = document.getElementById('clearBtn');
+        const saveBtn = document.getElementById('saveBtn');
+        const resolutionSelect = document.getElementById('resolutionSelect');
+
+        let resolution = 32; // Default resolution
+        let pixelSize = 16; // Default pixel size
+        let isDrawing = false;
+        let isErasing = false;
+
+        function resizeCanvas() {
+            resolution = parseInt(resolutionSelect.value);
+            pixelSize = Math.max(1, Math.floor(512 / resolution));
+            
+            canvas.width = resolution;
+            canvas.height = resolution;
+            canvas.style.width = `${resolution * pixelSize}px`;
+            canvas.style.height = `${resolution * pixelSize}px`;
+
+            gridOverlay.width = resolution * pixelSize;
+            gridOverlay.height = resolution * pixelSize;
+
+            ctx.imageSmoothingEnabled = false;
+            clearCanvas();
+            drawGrid();
+        }
+
+        function drawGrid() {
+            gridCtx.clearRect(0, 0, gridOverlay.width, gridOverlay.height);
+            gridCtx.strokeStyle = '#ccc';
+            gridCtx.lineWidth = 1;
+
+            for (let i = 0; i <= resolution; i++) {
+                gridCtx.beginPath();
+                gridCtx.moveTo(i * pixelSize - 0.5, 0);
+                gridCtx.lineTo(i * pixelSize - 0.5, resolution * pixelSize);
+                gridCtx.stroke();
+
+                gridCtx.beginPath();
+                gridCtx.moveTo(0, i * pixelSize - 0.5);
+                gridCtx.lineTo(resolution * pixelSize, i * pixelSize - 0.5);
+                gridCtx.stroke();
+            }
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function fillPixel(x, y) {
+            const pixelX = Math.floor(x / pixelSize);
+            const pixelY = Math.floor(y / pixelSize);
+            
+            if (isErasing) {
+                ctx.clearRect(pixelX, pixelY, 1, 1);
+            } else {
+                ctx.fillStyle = colorPicker.value;
+                ctx.fillRect(pixelX, pixelY, 1, 1);
+            }
+        }
+
+        canvas.addEventListener('mousedown', (e) => {
+            isDrawing = true;
+            fillPixel(e.offsetX, e.offsetY);
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (isDrawing) {
+                fillPixel(e.offsetX, e.offsetY);
+            }
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDrawing = false;
+        });
+
+        canvas.addEventListener('mouseleave', () => {
+            isDrawing = false;
+        });
+
+        clearBtn.addEventListener('click', clearCanvas);
+
+        eraserBtn.addEventListener('click', () => {
+            isErasing = !isErasing;
+            eraserBtn.classList.toggle('active');
+        });
+
+        saveBtn.addEventListener('click', () => {
+            const link = document.createElement('a');
+            link.download = 'pixel_art.png';
+            link.href = canvas.toDataURL('image/png');
+            link.click();
+        });
+
+        resolutionSelect.addEventListener('change', resizeCanvas);
+
+        // Initialize the canvas
+        resizeCanvas();
+    </script>
+</body>
+</html>
