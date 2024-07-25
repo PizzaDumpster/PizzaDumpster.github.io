@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bingo Number Caller</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .current-number {
+            font-size: 48px;
+            font-weight: bold;
+            color: #4a0e8c;
+        }
+        .controls button {
+            margin: 0 10px;
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .draw-ball { background-color: #4a90e2; color: white; }
+        .start-auto { background-color: #2ecc71; color: white; }
+        .stop-auto { background-color: #e74c3c; color: white; }
+        .reset { background-color: #9b59b6; color: white; }
+        .bingo-board {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+        }
+        .column .letter {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+        }
+        .column .numbers {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 5px;
+        }
+        .number {
+            width: 30px;
+            height: 30px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #f0f0f0;
+            border-radius: 50%;
+        }
+        .number.called {
+            background-color: #2ecc71;
+            color: white;
+        }
+        .called-numbers {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 20px;
+        }
+        .called-number {
+            background-color: #2ecc71;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 15px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Bingo Number Caller</h1>
+    <div id="currentNumber" class="current-number"></div>
+    <div class="controls">
+        <button id="drawBall" class="draw-ball">Draw Ball</button>
+        <button id="toggleAuto" class="start-auto">Start Auto Call</button>
+        <button id="resetGame" class="reset">Reset Game</button>
+    </div>
+    <div>
+        <label for="callInterval">Auto Call Interval (seconds):</label>
+        <input id="callInterval" type="number" value="5" min="1">
+    </div>
+    <div id="bingoBoard" class="bingo-board"></div>
+    <div>
+        <h3>Called Numbers:</h3>
+        <div id="calledNumbers" class="called-numbers"></div>
+    </div>
+
+    <script>
+        const COLUMNS = ['B', 'I', 'N', 'G', 'O'];
+        let availableNumbers = [...Array(75)].map((_, i) => i + 1);
+        let calledNumbers = [];
+        let currentNumber = null;
+        let isCallingActive = false;
+        let callInterval = 5;
+        let autoCallTimer = null;
+
+        function getLetterForNumber(number) {
+            if (number <= 15) return 'B';
+            if (number <= 30) return 'I';
+            if (number <= 45) return 'N';
+            if (number <= 60) return 'G';
+            return 'O';
+        }
+
+        function callNumber() {
+            if (availableNumbers.length === 0) {
+                isCallingActive = false;
+                document.getElementById('toggleAuto').textContent = 'Start Auto Call';
+                document.getElementById('toggleAuto').className = 'start-auto';
+                clearInterval(autoCallTimer);
+                return;
+            }
+            const index = Math.floor(Math.random() * availableNumbers.length);
+            currentNumber = availableNumbers[index];
+            calledNumbers.push(currentNumber);
+            availableNumbers = availableNumbers.filter(n => n !== currentNumber);
+            updateDisplay();
+        }
+
+        function toggleCalling() {
+            isCallingActive = !isCallingActive;
+            const toggleButton = document.getElementById('toggleAuto');
+            if (isCallingActive) {
+                toggleButton.textContent = 'Stop Auto Call';
+                toggleButton.className = 'stop-auto';
+                autoCallTimer = setInterval(callNumber, callInterval * 1000);
+            } else {
+                toggleButton.textContent = 'Start Auto Call';
+                toggleButton.className = 'start-auto';
+                clearInterval(autoCallTimer);
+            }
+        }
+
+        function resetGame() {
+            availableNumbers = [...Array(75)].map((_, i) => i + 1);
+            calledNumbers = [];
+            currentNumber = null;
+            isCallingActive = false;
+            clearInterval(autoCallTimer);
+            document.getElementById('toggleAuto').textContent = 'Start Auto Call';
+            document.getElementById('toggleAuto').className = 'start-auto';
+            updateDisplay();
+        }
+
+        function updateDisplay() {
+            // Update current number
+            document.getElementById('currentNumber').textContent = currentNumber ? 
+                `${getLetterForNumber(currentNumber)}-${currentNumber}` : '';
+
+            // Update bingo board
+            const board = document.getElementById('bingoBoard');
+            board.innerHTML = '';
+            COLUMNS.forEach((letter, colIndex) => {
+                const column = document.createElement('div');
+                column.className = 'column';
+                column.innerHTML = `<div class="letter">${letter}</div>`;
+                const numbers = document.createElement('div');
+                numbers.className = 'numbers';
+                for (let i = 1; i <= 15; i++) {
+                    const number = colIndex * 15 + i;
+                    const numberDiv = document.createElement('div');
+                    numberDiv.className = `number ${calledNumbers.includes(number) ? 'called' : ''}`;
+                    numberDiv.textContent = number;
+                    numbers.appendChild(numberDiv);
+                }
+                column.appendChild(numbers);
+                board.appendChild(column);
+            });
+
+            // Update called numbers
+            const calledNumbersDiv = document.getElementById('calledNumbers');
+            calledNumbersDiv.innerHTML = '';
+            calledNumbers.forEach(num => {
+                const numSpan = document.createElement('span');
+                numSpan.className = 'called-number';
+                numSpan.textContent = `${getLetterForNumber(num)}-${num}`;
+                calledNumbersDiv.appendChild(numSpan);
+            });
+        }
+
+        document.getElementById('drawBall').addEventListener('click', callNumber);
+        document.getElementById('toggleAuto').addEventListener('click', toggleCalling);
+        document.getElementById('resetGame').addEventListener('click', resetGame);
+        document.getElementById('callInterval').addEventListener('change', (e) => {
+            const value = parseInt(e.target.value, 10);
+            if (!isNaN(value) && value > 0) {
+                callInterval = value;
+                if (isCallingActive) {
+                    clearInterval(autoCallTimer);
+                    autoCallTimer = setInterval(callNumber, callInterval * 1000);
+                }
+            }
+        });
+
+        // Initial board setup
+        updateDisplay();
+    </script>
+</body>
+</html>
