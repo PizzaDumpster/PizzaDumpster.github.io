@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Super Potato Fighter</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game variables
+        const GRAVITY = 0.8;
+        const JUMP_STRENGTH = -15;
+
+        function createPlayer(x, facingRight) {
+            return {
+                x: x,
+                y: 400,
+                width: 50,
+                height: 100,
+                speed: 5,
+                health: 100,
+                punching: false,
+                kicking: false,
+                facingRight: facingRight,
+                inputBuffer: [],
+                lastInputTime: 0,
+                yVelocity: 0,
+                isJumping: false,
+                controllerConnected: false
+            };
+        }
+
+        const player1 = createPlayer(200, true);
+        const player2 = createPlayer(550, false);
+
+        let fireballs = [];
+        let gameOver = false;
+
+        // Controller states
+        const controllers = {};
+
+        function connectHandler(e) {
+            addGamepad(e.gamepad);
+        }
+
+        function addGamepad(gamepad) {
+            controllers[gamepad.index] = gamepad;
+            updateControllerStatus();
+        }
+
+        function disconnectHandler(e) {
+            removeGamepad(e.gamepad);
+        }
+
+        function removeGamepad(gamepad) {
+            delete controllers[gamepad.index];
+            updateControllerStatus();
+        }
+
+        function updateControllerStatus() {
+            player1.controllerConnected = controllers[0] !== undefined;
+            player2.controllerConnected = controllers[1] !== undefined;
+        }
+
+        window.addEventListener("gamepadconnected", connectHandler);
+        window.addEventListener("gamepaddisconnected", disconnectHandler);
+
+        function updateGamepads() {
+            const gamepads = navigator.getGamepads ? navigator.getGamepads() : (navigator.webkitGetGamepads ? navigator.webkitGetGamepads() : []);
+            for (let i = 0; i < gamepads.length; i++) {
+                if (gamepads[i]) {
+                    controllers[gamepads[i].index] = gamepads[i];
+                }
+            }
+            updateControllerStatus();
+        }
+
+        function handleInput() {
+            updateGamepads();
+            for (let j in controllers) {
+                const controller = controllers[j];
+                const buttons = controller.buttons;
+
+                // Player 1 controls (assuming first controller)
+                if (j == 0) {
+                    handlePlayerInput(player1, buttons, 14, 15, 0, 1, 12);
+                }
+
+                // Player 2 controls (assuming second controller)
+                if (j == 1) {
+                    handlePlayerInput(player2, buttons, 14, 15, 0, 1, 12);
+                }
+            }
+        }
+
+        function handlePlayerInput(player, buttons, leftButton, rightButton, punchButton, kickButton, jumpButton) {
+            if (buttons[leftButton].pressed) { // Left
+                player.x -= player.speed;
+                player.facingRight = false;
+                addToInputBuffer(player, 'back');
+            }
+            if (buttons[rightButton].pressed) { // Right
+                player.x += player.speed;
+                player.facingRight = true;
+                addToInputBuffer(player, 'forward');
+            }
+            if (buttons[punchButton].pressed && !player.punching) { // Punch
+                player.punching = true;
+                addToInputBuffer(player, 'punch');
+            } else if (!buttons[punchButton].pressed) {
+                player.punching = false;
+            }
+            if (buttons[kickButton].pressed) { // Kick
+                player.kicking = true;
+            } else {
+                player.kicking = false;
+            }
+            if (buttons[jumpButton].pressed && !player.isJumping) { // Jump
+                player.yVelocity = JUMP_STRENGTH;
+                player.isJumping = true;
+            }
+
+            // Check for fireball input
+            checkFireballInput(player);
+        }
+
+        function addToInputBuffer(player, input) {
+            const currentTime = Date.now();
+            if (currentTime - player.lastInputTime > 500) {
+                player.inputBuffer = [];
+            }
+            player.inputBuffer.push(input);
+            player.lastInputTime = currentTime;
+            if (player.inputBuffer.length > 3) {
+                player.inputBuffer.shift();
+            }
+        }
+
+        function checkFireballInput(player) {
+            const buffer = player.inputBuffer;
+            if (buffer.length === 3 &&
+                buffer[0] === (player.facingRight ? 'back' : 'forward') &&
+                buffer[1] === (player.facingRight ? 'forward' : 'back') &&
+                buffer[2] === 'punch') {
+                createFireball(player);
+                player.inputBuffer = [];
+            }
+        }
+
+        function createFireball(player) {
+            fireballs.push({
+                x: player.facingRight ? player.x + player.width : player.x,
+                y: player.y + 30,
+                width: 30,
+                height: 30,
+                speed: player.facingRight ? 10 : -10
+            });
+        }
+
+        function drawPlayer(player, color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+            
+            // Draw punch
+            if (player.punching) {
+                ctx.fillStyle = 'red';
+                if (player.facingRight) {
+                    ctx.fillRect(player.x + player.width, player.y + 20, 30, 20);
+                } else {
+                    ctx.fillRect(player.x - 30, player.y + 20, 30, 20);
+                }
+            }
+            
+            // Draw kick
+            if (player.kicking) {
+                ctx.fillStyle = 'blue';
+                if (player.facingRight) {
+                    ctx.fillRect(player.x + player.width, player.y + 70, 40, 20);
+                } else {
+                    ctx.fillRect(player.x - 40, player.y + 70, 40, 20);
+                }
+            }
+        }
+
+        function drawFireballs() {
+            ctx.fillStyle = 'orange';
+            fireballs.forEach(fireball => {
+                ctx.beginPath();
+                ctx.arc(fireball.x + fireball.width / 2, fireball.y + fireball.height / 2, fireball.width / 2, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function drawHealthBar(player, x, y) {
+            ctx.fillStyle = 'grey';
+            ctx.fillRect(x, y, 200, 20);
+            ctx.fillStyle = 'green';
+            ctx.fillRect(x, y, player.health * 2, 20);
+
+            // Draw controller status
+            ctx.font = '16px Arial';
+            ctx.fillStyle = player.controllerConnected ? 'green' : 'red';
+            ctx.fillText(player.controllerConnected ? 'Controller Connected' : 'Controller Disconnected', x, y + 40);
+        }
+
+        function checkCollision(player1, player2) {
+            if (player1.punching && 
+                player1.x + player1.width + 30 > player2.x && 
+                player1.x < player2.x + player2.width &&
+                player1.y + 20 < player2.y + player2.height &&
+                player1.y + 40 > player2.y) {
+                player2.health -= 5;
+            }
+            if (player1.kicking && 
+                player1.x + player1.width + 40 > player2.x && 
+                player1.x < player2.x + player2.width &&
+                player1.y + 70 < player2.y + player2.height &&
+                player1.y + 90 > player2.y) {
+                player2.health -= 10;
+            }
+        }
+
+        function checkFireballCollisions() {
+            fireballs = fireballs.filter(fireball => {
+                if (fireball.x + fireball.width > player2.x &&
+                    fireball.x < player2.x + player2.width &&
+                    fireball.y + fireball.height > player2.y &&
+                    fireball.y < player2.y + player2.height) {
+                    player2.health -= 15;
+                    return false;
+                }
+                if (fireball.x + fireball.width > player1.x &&
+                    fireball.x < player1.x + player1.width &&
+                    fireball.y + fireball.height > player1.y &&
+                    fireball.y < player1.y + player1.height) {
+                    player1.health -= 15;
+                    return false;
+                }
+                return fireball.x > 0 && fireball.x < canvas.width;
+            });
+        }
+
+        function updatePlayerPosition(player) {
+            // Apply gravity
+            player.yVelocity += GRAVITY;
+            player.y += player.yVelocity;
+
+            // Check for floor collision
+            if (player.y + player.height > canvas.height) {
+                player.y = canvas.height - player.height;
+                player.yVelocity = 0;
+                player.isJumping = false;
+            }
+
+            // Keep player within canvas
+            player.x = Math.max(0, Math.min(player.x, canvas.width - player.width));
+        }
+
+        function updateGame() {
+            if (gameOver) return;
+
+            handleInput();
+
+            updatePlayerPosition(player1);
+            updatePlayerPosition(player2);
+
+            // Update fireballs
+            fireballs.forEach(fireball => {
+                fireball.x += fireball.speed;
+            });
+
+            // Check for collisions and damage
+            checkCollision(player1, player2);
+            checkCollision(player2, player1);
+            checkFireballCollisions();
+
+            // Check for game over
+            if (player1.health <= 0 || player2.health <= 0) {
+                gameOver = true;
+            }
+        }
+
+        function drawGameOver() {
+            ctx.font = '48px Arial';
+            ctx.fillStyle = 'red';
+            ctx.fillText('Game Over!', canvas.width / 2 - 100, canvas.height / 2);
+            if (player1.health <= 0) {
+                ctx.fillText('Player 2 Wins!', canvas.width / 2 - 120, canvas.height / 2 + 60);
+            } else {
+                ctx.fillText('Player 1 Wins!', canvas.width / 2 - 120, canvas.height / 2 + 60);
+            }
+        }
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            updateGame();
+            drawPlayer(player1, 'brown');
+            drawPlayer(player2, 'orange');
+            drawFireballs();
+            drawHealthBar(player1, 50, 50);
+            drawHealthBar(player2, 550, 50);
+            
+            if (gameOver) {
+                drawGameOver();
+            } else {
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
